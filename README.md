@@ -33,19 +33,19 @@ This is my first [Neovim](https://github.com/neovim/neovim) plugin, and it's jus
 
 ## Commands
 
-- `:NcksNew` {optional_pass}
-    - Adds new name entry to your ncks file, by default opens dialog.
-    - `{optional_pass}` pass new entry to file inline, instead of opening the dialog.
+- `:NcksInfo`
+    - Displays various information on ncks file, like ***file location*** and ***entry count***.
 - `:NcksOpen`
     - Opens ncks file in new buffer.
-- `:NcksList`
-    - Returns all lines of ncks file in list.
 - `:NcksCopyAll`
     - Copies all entries from ncks file to clipboard.
 - `:NcksRandom`
     - Picks random entry from ncks file, copies it to clipboard.
-- `:NcksInfo`
-    - Displays various information on ncks file, like ***file location*** and ***entry count***.
+- `:NcksList`
+    - Returns all lines of ncks file in list.
+- `:NcksNew` {optional_pass}
+    - Adds new name entry to your ncks file, by default opens dialog.
+    - `{optional_pass}` pass new entry to file inline, instead of opening the dialog.
 
 ## Configuration
 
@@ -124,10 +124,9 @@ This is my first [Neovim](https://github.com/neovim/neovim) plugin, and it's jus
     -- ... keymaps
 
     vim.keymap.set('n', '<leader>nn', function()
-        local exist, contents = ncks.list()
-        if exist then
-            toggle_telescope(contents)
-        end
+        ncks.exists(function(_)
+            toggle_telescope(ncks.list())
+        end)
     end, { desc = 'Open ncks window' })
 }
 ```
