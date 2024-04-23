@@ -1,88 +1,124 @@
 local M = {}
 
 local config = {
-    location = vim.fn.expand '~/.ncks',
+    location = '~/.ncks',
     layout_config = {
         prompt_position = 'top',
         width = 0.50,
         height = 0.20,
     },
-    prompt_title = 'New',
+    prompt_title = 'New Nickname',
 }
-
-function M.write_nck(nck)
-    local file = io.open(M.config.location, 'a')
-    if file and nck and nck ~= '' then
-        file:write(nck .. '\n')
-        file:close()
-        print('Added new nickname: ' .. nck)
-    else
-        if not file then
-            print 'Failed to open ncks file for writing.'
-        elseif not nck then
-            print 'Nickname is nil.'
-        elseif nck == '' then
-            print 'Nickname is an empty string.'
-        end
-    end
-end
 
 function M.setup(opts)
     M.config = vim.tbl_deep_extend('force', config, opts or {})
 end
 
-function M.new(nck)
-    if not nck or #nck == 0 then
-        vim.ui.input({
-            prompt = M.config.prompt_title .. ' (' .. M.config.location .. ')',
-        }, function(input)
-            if input then
-                M.write_nck(input)
-            end
-        end)
+function M.write(nck)
+    local file = io.open(vim.fn.expand(M.config.location), 'a')
+
+    if file and nck and nck ~= '' then
+        file:write(nck .. '\n')
+        file:close()
+        print('Added new nickname: ' .. '"' .. nck .. '"')
     else
-        M.write_nck(nck)
+        if not file then
+            vim.api.nvim_err_writeln "err: Failed to open ncks file for writing. Doesn't exist."
+        elseif not nck then
+            vim.api.nvim_err_writeln 'err: Nickname is nil.'
+        elseif nck == '' then
+            vim.api.nvim_err_writeln 'err: Nickname is an empty string.'
+        end
+    end
+end
+
+local function exists()
+    local path = vim.fn.expand(M.config.location)
+
+    if vim.loop.fs_stat(path) then
+        return true, path
+    else
+        vim.api.nvim_err_writeln('err: Ncks file (' .. M.config.location .. ") doesn't exist.")
+        return false, path
+    end
+end
+
+function M.new(nck)
+    local exist, _ = exists()
+
+    if exist then
+        if not nck or #nck == 0 then
+            vim.ui.input({
+                prompt = M.config.prompt_title .. ' (' .. M.config.location .. ')',
+            }, function(input)
+                if input then
+                    M.write(input)
+                end
+            end)
+        else
+            M.write(nck)
+        end
     end
 end
 
 function M.open()
-    local ncks_path = M.config.location
-    if vim.loop.fs_stat(ncks_path) then
-        vim.cmd('edit ' .. ncks_path)
-    else
-        print('The file does not exist: ' .. ncks_path)
+    local exist, path = exists()
+
+    if exist then
+        vim.cmd('edit ' .. path)
+        print('Opened ' .. M.config.location .. ' in a new buffer')
     end
-    print('Opened ' .. ncks_path .. ' in a new buffer...')
 end
 
 function M.list()
     local lines = {}
-    local ncks_path = M.config.location
-    if vim.loop.fs_stat(ncks_path) then
-        for line in io.lines(ncks_path) do
+    local exist, path = exists()
+
+    if exist then
+        for line in io.lines(path) do
             table.insert(lines, line)
         end
     end
-    return lines
+
+    return exist, lines
 end
 
 function M.random()
-    local lines = M.list()
-    if lines and #lines > 0 then
-        local random_nck = lines[math.random(#lines)]
-        vim.fn.setreg('+', random_nck)
-        print('Copied random nickname to clipboard: ' .. random_nck)
-    else
-        print('Ncks file (' .. M.config.location .. ') empty...')
+    local exist, lines = M.list()
+
+    if exist then
+        if lines and #lines > 0 then
+            local random_nck = lines[math.random(#lines)]
+            vim.fn.setreg('+', random_nck)
+            print('Copied random nickname to clipboard: ' .. '"' .. random_nck .. '"')
+        else
+            vim.api.nvim_err_writeln('Ncks file (' .. M.config.location .. ') is empty')
+        end
+    end
+end
+
+function M.copy_all()
+    local exist, lines = M.list()
+
+    if exist then
+        if lines and #lines > 0 then
+            local contents = table.concat(lines, '\n')
+            vim.fn.setreg('+', contents)
+            print('Copied all nicknames from file (' .. M.config.location .. ') to clipboard')
+        else
+            vim.api.nvim_err_writeln('Ncks file (' .. M.config.location .. ') is empty')
+        end
     end
 end
 
 function M.info()
-    local file_location = M.config.location
-    local entry_count = #M.list()
-    print 'Ncks File Information:'
-    print('  - File Location: ' .. file_location)
-    print('  - Entry Count: ' .. entry_count)
+    local exist, lines = M.list()
+
+    if exist then
+        print 'Ncks File Information:'
+        print('  - File Location: ' .. M.config.location)
+        print('  - Entry Count: ' .. #lines)
+    end
 end
 
 local commands = {
@@ -94,17 +130,33 @@ local commands = {
         opts = { nargs = '?', desc = 'Add a new nickname to the ncks file' },
     },
     {
+        name = 'NcksInfo',
+        func = M.info,
+        opts = { desc = 'Display information about the ncks file' },
+    },
+    {
         name = 'NcksOpen',
         func = M.open,
         opts = { desc = 'Open the ncks file in a new buffer' },
     },
     {
+        name = 'NcksCopyAll',
+        func = M.copy_all,
+        opts = { desc = 'Copy all entries in the ncks file to clipboard' },
+    },
+    {
         name = 'NcksList',
         func = function()
-            local lines = M.list()
-            print('Ncks (' .. M.config.location .. '):')
-            for _, line in ipairs(lines) do
-                print('  - ' .. line)
+            local exist, lines = M.list()
+            if exist then
+                if lines and #lines > 0 then
+                    print('Ncks (' .. M.config.location .. '):')
+                    for _, line in ipairs(lines) do
+                        print('  - ' .. line)
+                    end
+                else
+                    vim.api.nvim_err_writeln('Ncks file (' .. M.config.location .. ') is empty')
+                end
             end
         end,
         opts = { desc = 'List all entries in the ncks file' },
@@ -113,11 +165,6 @@ local commands = {
         name = 'NcksRandom',
         func = M.random,
         opts = { desc = 'Pick a random entry from the ncks file and copy it to clipboard' },
-    },
-    {
-        name = 'NcksInfo',
-        func = M.info,
-        opts = { desc = 'Display information about the ncks file' },
     },
 }
 

@@ -1,6 +1,6 @@
 # ncks.nvim
 
-Adding potential Discord nicknames to an endlessly expanding and rarely used text file... **WITHOUT LEAVING NEOVIM**!
+Adding random Discord nicknames to an endlessly expanding and rarely used text file... **WITHOUT LEAVING NEOVIM**!
 
 This is my first [Neovim](https://github.com/neovim/neovim) plugin, and it's just a tiny little time saver utility I've been wanting for personal use, and I thought it'd be a simple starting point for learning plugin dev.
 
@@ -19,13 +19,14 @@ This is my first [Neovim](https://github.com/neovim/neovim) plugin, and it's jus
 {
     "956MB/ncks.nvim",
     config = function()
-        require("ncks").setup()
+        require('ncks').setup {} -- required
 
-        vim.keymap.set('n', '<leader>nn', function() ncks.new() end, { desc = "Add [N]ew [N]ickname" })
-        vim.keymap.set('n', '<leader>no', function() ncks.open() end, { desc = "[O]pen [N]cks file" })
-        vim.keymap.set('n', '<leader>nl', function() ncks.list() end, { desc = "[L]ist [N]cks file" })
-        vim.keymap.set('n', '<leader>nr', function() ncks.random() end, { desc = "Pick [R]andom [N]ickname from file" })
-        vim.keymap.set('n', '<leader>ni', function() ncks.info() end, { desc = "Show [N]cks file [I]nfo" })
+        vim.keymap.set('n', '<leader>nn', '<cmd>NcksNew<cr>', { desc = 'Add [N]ew [N]ickname' })
+        vim.keymap.set('n', '<leader>ni', '<cmd>NcksInfo<cr>', { desc = 'Show [N]icks file [I]nfo' })
+        vim.keymap.set('n', '<leader>no', '<cmd>NcksOpen<cr>', { desc = '[O]pen [N]cks file' })
+        vim.keymap.set('n', '<leader>nl', '<cmd>NcksList<cr>', { desc = '[L]ist [N]cks files' })
+        vim.keymap.set('n', '<leader>nc', '<cmd>NcksCopyAll<cr>', { desc = '[C]opy all [N]icknames from file to clipboard' })
+        vim.keymap.set('n', '<leader>nr', '<cmd>NcksRandom<cr>', { desc = 'Pick [R]andom [N]ick from file' })
     end
 }
 ```
@@ -39,6 +40,8 @@ This is my first [Neovim](https://github.com/neovim/neovim) plugin, and it's jus
     - Opens ncks file in new buffer.
 - `:NcksList`
     - Returns all lines of ncks file in list.
+- `:NcksCopyAll`
+    - Copies all entries from ncks file to clipboard.
 - `:NcksRandom`
     - Picks random entry from ncks file, copies it to clipboard.
 - `:NcksInfo`
@@ -57,7 +60,7 @@ This is my first [Neovim](https://github.com/neovim/neovim) plugin, and it's jus
 
 {
     -- Default file ~/.ncks, but can use literally anything
-    location = vim.fn.expand '~/.ncks',
+    location = '~/.ncks',
     -- Layout config stuff if you want Telescope
     layout_config = {
         prompt_position = 'top',
@@ -86,16 +89,14 @@ This is my first [Neovim](https://github.com/neovim/neovim) plugin, and it's jus
 {   -- Using telescope.nvim
 
     local ncks = require 'ncks'
-    ncks.setup { -- required
-        -- ...
-    }
+    ncks.setup {} -- required
 
-    local function toggle_telescope(ncks_contents)
+    local function toggle_telescope(contents)
         local function handle_input(prompt_bufnr)
             local entry = require('telescope.actions.state').get_current_line()
             if entry and entry ~= '' then
                 require('telescope.actions').close(prompt_bufnr)
-                ncks.write_nck(entry)
+                ncks.write(entry)
             end
         end
 
@@ -104,7 +105,7 @@ This is my first [Neovim](https://github.com/neovim/neovim) plugin, and it's jus
                 prompt_title = ncks.config.prompt_title,
                 results_title = ncks.config.location,
                 finder = require('telescope.finders').new_table {
-                    results = ncks_contents,
+                    results = contents,
                     entry_maker = function(entry)
                         return { value = entry, display = entry, ordinal = entry, }
                     end,
@@ -123,7 +124,10 @@ This is my first [Neovim](https://github.com/neovim/neovim) plugin, and it's jus
     -- ... keymaps
 
     vim.keymap.set('n', '<leader>nn', function()
-        toggle_telescope(ncks.list())
+        local exist, contents = ncks.list()
+        if exist then
+            toggle_telescope(contents)
+        end
     end, { desc = 'Open ncks window' })
 }
 ```
@@ -134,14 +138,13 @@ Both [`ThePrimeagen/harpoon`](https://github.com/ThePrimeagen/harpoon/tree/harpo
 
 ## TODO
 
-- [ ] I've only run this on macOS, but I don't see why it wouldn't work on Linux or Windows
+- [ ] If file doesn't exist when trying to open or add, ask to create it
 - [ ] Still confused on how to fine tune all of Telescope settings
     - [ ] Line count in the prompt shouldn't be "9 / 9"
-    - [ ] Results window really has no reason to be scrollable, unless the lines are an editable buffer like [oil.nvim](https://github.com/stevearc/oil.nvim)
     - [ ] Figure out how to use Telescope ui without the results window, just the prompt
-    - [ ] Line numbers in Telescope results
-- [ ] More commands... don't even know what I want yet, tbd
 - [ ] Multiple lists?
+- [ ] More commands:
+    - [ ] Create, Delete, Move/Rename, etc.
 - [ ] Tests?
 
 ## License
