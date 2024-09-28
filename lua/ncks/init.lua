@@ -22,6 +22,14 @@ local config = {
     },
 }
 
+local function reversed_contents(contents)
+    local reversed = {}
+    for i = #contents, 1, -1 do
+        table.insert(reversed, contents[i])
+    end
+    return reversed
+end
+
 local function ensure_telescope()
     local ok, _ = pcall(require, 'telescope')
     return ok
@@ -100,7 +108,7 @@ function M.new(nck)
                 prompt_title = get_prompt_title(M.config.new_nickname.prompt_title),
                 results_title = M.config.location,
                 finder = require('telescope.finders').new_table {
-                    results = contents,
+                    results = reversed_contents(contents),
                     entry_maker = function(entry)
                         return {
                             value = entry,
@@ -178,7 +186,7 @@ function M.search()
                     selection_caret = M.config.telescope_defaults.selection_caret,
                     prompt_title = get_prompt_title(M.config.search.prompt_title),
                     finder = require('telescope.finders').new_table {
-                        results = M.list(),
+                        results = reversed_contents(M.list()),
                         entry_maker = function(entry)
                             return {
                                 value = entry,
@@ -187,6 +195,7 @@ function M.search()
                             }
                         end,
                     },
+                    sorting_strategy = 'ascending',
                     sorter = require('telescope.sorters').get_generic_fuzzy_sorter(),
                     attach_mappings = function(_, map)
                         map('i', '<CR>', function(pb)
